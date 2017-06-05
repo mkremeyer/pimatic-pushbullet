@@ -1,6 +1,6 @@
 # Pushbullet Plugin
 
-# This is an plugin to send push notifications via pushbullet
+# This is an plugin to send and receive push notifications via pushbullet
 
 module.exports = (env) ->
 
@@ -22,6 +22,7 @@ module.exports = (env) ->
       pusherService = new PushBullet(apikey)
       
       @framework.ruleManager.addActionProvider(new PushbulletActionProvider @framework, config)
+      @framework.ruleManager.addPredicateProvider(new PushbulletPredicateProvider @framework)
 
   plugin = new PushbulletPlugin()
 
@@ -115,6 +116,62 @@ module.exports = (env) ->
                 __("pushbullet message sent successfully") 
               )
       )
+
+  class PushbulletPredicateProvider extends env.predicates.PredicateProvider
+
+    presets: [
+      {
+        name: "PushBullet Message"
+        input: "push Hello World"
+      }
+    ]
+
+    constructor: (@framework) ->
+      #env.logger.info "PushBullet Predicate Provider"
+      #return
+
+    parsePredicate: (input, context) ->
+      env.logger.info "-------------------------"
+      message = null
+
+      setMessage = (m, match) =>
+        message = match
+        env.logger.info "moinsen"
+      
+      m = M(input, context)
+        .match('push ')
+        .matchString(setMessage)
+
+      env.logger.info input
+
+      env.logger.info "had match? "+m.hadMatch()
+      env.logger.info "full match: "+m.getFullMatch()
+      
+
+      if m.hadMatch()
+        fullMatch = m.getFullMatch()
+        env.logger.info "message: "+ message
+        return {
+          token: fullMatch
+          nextInput: input.substring(fullMatch.length)
+          predicateHandler: new PushbulletPredicateHandler(message)
+        }
+      else
+        return null
+
+  class PushbulletPredicateHandler extends env.predicates.PredicateHandler
+
+    constructor: (@framework) ->
+      @state = null
+
+    setup: (message) ->
+      PushbulletPlugin.on 'push', @onPush = message =>
+
+
+
+
+  
+
 
   module.exports.PushbulletActionHandler = PushbulletActionHandler
 
